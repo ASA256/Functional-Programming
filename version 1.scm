@@ -3,12 +3,12 @@
 (require srfi/1)
 (require srfi/13)
 
-(define objects '((1 "a silver dagger")
+(define objects '((1 "a knights sword")
                   (1 "a gold coin")))
 
-(define descriptions '((1 "You are in the lobby.")
-                       (2 "You are in the hallway.")
-                       (3 "You are in a swamp.")))
+(define descriptions '((1 "You are in soul society.")
+                       (2 "You are at hells gate.")
+                       (3 "You are in the valley of the dead.")))
 
 (define look '(((directions) look) ((look) look) ((examine room) look)))
 (define quit '(((exit game) quit) ((quit game) quit) ((exit) quit) ((quit) quit)))
@@ -17,8 +17,8 @@
 (define inventory '(((inventory) inventory) ((bag) inventory)))
 (define actions `(,@look ,@quit ,@pick ,@put ,@inventory))
 
-(define decisiontable `((1 ((north) 2) ((north west) 3) ,@actions)
-                        (2 ((south) 1) ,@actions)
+(define decisiontable `((1 ((soul society) 2) ((hells gate) 3) ,@actions)
+                        (2 ((valley of the dead) 1) ,@actions)
                         (3 ,@actions)))
 
 (define objectdb (make-hash))
