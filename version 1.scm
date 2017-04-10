@@ -2,27 +2,50 @@
 
 (require srfi/1)
 (require srfi/13)
-
-(define objects '((1 "a knights sword")
+;; Defining items that will be accessible throughout the game
+(define objects '((1 "a zanpakuto")
+                  (2 "a bow")
                   (1 "a gold coin")))
 
-(define descriptions '((1 "You are in soul society.")
-                       (2 "You are at hells gate.")
-                       (3 "You are in the valley of the dead.")))
+(define beasts '((1 "soul reaper")
+                  (2 "quincy")
+                  (1 "hollow")))
 
+;; Different areas for the user to explore
+(define descriptions '((1 "you are in Soul Society.")
+                      (2 "you are in the Hidden Leaf Village.")
+                      (3 "you are in East Blue.")
+                      (4 "you are in the Village Hidden in the Mist.")
+                      (5 "you are in the Dragons Den.")
+                      (6 "you are in Hueco Mundo.")
+                      (7 "you are in the Sky Island.")
+                      (8 "you are at Hells Gate.")
+                      (9 "you are in the Valley of the Dead.")
+                      (10 "you are in the Forst of Deadly Hollows.")
+                      (11 "your are in the the kingdom of the elves.")))
+
+;; commands and their decision tables that are avaliable to the users
 (define look '(((directions) look) ((look) look) ((examine room) look)))
 (define quit '(((exit game) quit) ((quit game) quit) ((exit) quit) ((quit) quit)))
 (define pick '(((get) pick) ((pickup) pick) ((pick) pick)))
+(define fight '(((fight) fight) ((kill) fight) ((destroy) fight)))
 (define put '(((put) drop) ((drop) drop) ((place) drop) ((remove) drop)))
-(define inventory '(((inventory) inventory) ((bag) inventory)))
-(define actions `(,@look ,@quit ,@pick ,@put ,@inventory))
+(define inventory '(((inventory) inventory) ((bag)  inventory)))
+(define upgrade '(((update) upgrade) ((evolution)  upgrade)))
+(define actions `(,@look ,@quit ,@pick ,@fight ,@put ,@inventory))
 
-(define decisiontable `((1 ((soul society) 2) ((hells gate) 3) ,@actions)
-                        (2 ((valley of the dead) 1) ,@actions)
-                        (3 ,@actions)))
+;; decision tables for the areas
+(define decisiontable `((1 ((Hidden Leaf Village) 2) ((East Blue) 3) ,@actions)
+                        (2 ((Dragons Den) 5) ((Village Hidden in the Mist) 4),@actions)
+                        (3 ((East Blue) 4) ((Heuco Mundo) 6),@actions)
+                        (4 ((Village Hidden in the Mist) 7)((Hells Gate) 8) ,@actions)
+                        (5 ((Hueco Mundo) 6) ,@actions)
+                        (6 ,@actions)))
 
 (define objectdb (make-hash))
 (define inventorydb (make-hash))
+(define upgradedb (make-hash))
+(define beastdb (make-hash))
 
 (define (add-object db id object)
   (if (hash-has-key? db id)
@@ -35,14 +58,32 @@
    (lambda (r) 
      (add-object db (first r) (second r))) objects))
 
+
+
 (add-objects objectdb)
+
+;; monster db 
+(define (add-beast db id beast)
+  (if (hash-has-key? db id)
+      (let ((record (hash-ref db id)))
+        (hash-set! db id (cons beast record)))
+      (hash-set! db id (cons beast empty))))
+
+(define (add-beasts db)
+  (for-each
+   (lambda (r) 
+     (add-beast db (first r) (second r))) beasts))
+
+
+
+(add-beasts beastdb)
 
 (define (display-objects db id)
   (when (hash-has-key? db id)
     (let* ((record (hash-ref db id))
            (output (string-join record " and ")))
       (when (not (equal? output ""))
-        (if (eq? id 'bag)
+        (if (eq? id 'npcc)
             (printf "You are carrying ~a.\n" output)
             (printf "You can see ~a.\n" output))))))
 
@@ -69,10 +110,38 @@
              (printf "Removed ~a from your bag.\n" (first item))
              (add-object objectdb id (first item))
              (hash-set! db 'bag result))))))
-             
+
+;;Beast Db Functions
+
+(define (display-beasts db id)
+  (when (hash-has-key? db id)
+    (let* ((record (hash-ref db id))
+           (output (string-join record " and ")))
+      (when (not (equal? output ""))
+        (if (eq? id 'npc)
+            (printf "You are carrying ~a.\n" output)
+            (printf "You can see ~a.\n" output))))))
+
+(define (remove-beast-from-room db id str)
+  (when (hash-has-key? db id)
+    (let* ((record (hash-ref db id))
+           (result (remove (lambda (x) (string-suffix-ci? str x)) record))
+           (npcc (lset-difference equal? record result)))
+      (cond ((null? npcc) 
+             (printf "I don't see that npc in the room!\n"))
+            (else
+             (printf "~a has been killed" (first npcc))
+             (add-object beastdb 'npc (first npcc))
+             (hash-set! db id result))))))
+
+            
 (define (pick-item id input)
   (let ((item (string-join (cdr (string-split input)))))
     (remove-object-from-room objectdb id item)))
+
+(define (kill-beast id input)
+  (let ((item (string-join (cdr (string-split input)))))
+    (remove-beast-from-room beastdb id item)))
 
 (define (put-item id input)
   (let ((item (string-join (cdr (string-split input)))))
@@ -142,7 +211,9 @@
   (let loop ((id initial-id) (description #t))
     (when description
       (display-description id)
+      (display-beasts beastdb id)
       (display-objects objectdb id))
+    
     (printf "> ")
     (let* ((input (read-line))
            (string-tokens (string-tokenize input))
@@ -158,6 +229,9 @@
                (loop id #t))
               ((eq? response 'pick)
                (pick-item id input)
+               (loop id #f))
+              ((eq? response 'fight)
+               (kill-beast id input)
                (loop id #f))
               ((eq? response 'drop)
                (put-item id input)
